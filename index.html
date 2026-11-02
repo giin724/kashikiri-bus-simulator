@@ -75,6 +75,9 @@ button.primary:disabled{opacity:.6;cursor:wait}
 fieldset{border:1px solid var(--line);border-radius:8px;padding:12px 14px 2px;margin:0 0 14px}
 legend{font-size:.85rem;color:var(--muted);padding:0 6px}
 .hint{font-size:.78rem;color:var(--muted);margin-top:4px}
+label.check{display:flex;align-items:center;gap:10px;font-size:1rem;color:var(--fg);cursor:pointer;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+label.check input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
+label.check small{display:block;font-size:.78rem}
 
 /* 結果 */
 .total{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:6px}
@@ -153,6 +156,9 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
           <option value="commuter">コミューター（〜14席）</option>
         </select>
       </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="guide"><span>バスガイドを付ける<small class="muted">（1台につき1名、1人1日 20,000円）</small></span></label>
+      </div>
     </form>
   </section>
 
@@ -170,7 +176,8 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
     <li>端数処理：距離は10km未満を10kmに切り上げ、時間は30分未満切り捨て・30分以上切り上げ。</li>
     <li>基準額（下限）：大型 150円/km・7,430円/時、中型 130円/km・6,270円/時、小型 110円/km・5,490円/時、コミューター 100円/km・4,900円/時。運転9時間超または500km超の場合は交替運転者配置料金（30円/km・2,610円/時）を加算。消費税10%。</li>
     <li>総運行距離・総運行時間は往復（出発地→到着地→出発地）の値で、地図サービス（OpenStreetMap / OSRM）の自動車経路時間に休憩・速度差を見込んだ1.25倍を掛けたものです。現地滞在時間は含まれません。経路サービスに接続できない場合は直線距離からの概算に切り替わります。</li>
-    <li>日帰り運行を前提としています。宿泊を伴う行程、深夜早朝（22時〜翌5時）の運行、有料道路利用料・駐車料・ガイド料などの実費は含みません。表示額は法令上の下限額に基づく目安で、正式な見積りは営業所へお問い合わせください。</li>
+    <li>バスガイドは1台につき1名、1人1日20,000円（税抜）で計算します。</li>
+    <li>日帰り運行を前提としています。宿泊を伴う行程、深夜早朝（22時〜翌5時）の運行、有料道路利用料・駐車料などの実費は含みません。表示額は法令上の下限額に基づく目安で、正式な見積りは営業所へお問い合わせください。</li>
   </ul>
 </section>
 </div>
@@ -188,6 +195,8 @@ const RATES = {
 };
 const DRIVER = {km:30, hour:2610};
 const TAX = 0.10;
+const GUIDE_FEE = 20000;                  // バスガイド 1人1日あたり（税抜）
+const TRIP_DAYS = 1;                      // 日帰り前提
 const MIN_DRIVE_H = 3;
 const BUS_TIME_FACTOR = 1.25;
 const LEGAL_DRIVE_H = 9, LEGAL_KM = 500;
@@ -225,9 +234,10 @@ function calcFare(p){
   const useDriver = p.hours > LEGAL_DRIVE_H || p.km > LEGAL_KM;   // 交替運転者 自動判定
   const driverTime = useDriver ? totalH * DRIVER.hour : 0;
   const driverKm = useDriver ? totalKm * DRIVER.km : 0;
-  const subtotal = timeFare + kmFare + driverTime + driverKm;
+  const guideFee = p.guide ? GUIDE_FEE * TRIP_DAYS : 0;   // 1台につきガイド1名
+  const subtotal = timeFare + kmFare + driverTime + driverKm + guideFee;
   const tax = Math.round(subtotal * TAX);
-  return {rate:r, driveH, inspH, totalH, totalKm, timeFare, kmFare, useDriver, driverTime, driverKm, subtotal, tax, total: subtotal + tax};
+  return {rate:r, driveH, inspH, totalH, totalKm, timeFare, kmFare, useDriver, driverTime, driverKm, guideFee, subtotal, tax, total: subtotal + tax};
 }
 
 // ===== 経路取得 =====
@@ -303,7 +313,7 @@ function applyRouteToInputs(){
   render();
 }
 
-['buses','km','hours','vehicle'].forEach(id=>$(id).addEventListener('input', render));
+['buses','km','hours','vehicle','guide'].forEach(id=>$(id).addEventListener('input', render));
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -314,7 +324,7 @@ function render(){
     result.innerHTML = '<p class="placeholder">出発地・到着地を入力して「距離・時間を取得して計算」を押すか、総運行距離・総運行時間を直接入力してください。</p>';
     return;
   }
-  const p = {km, hours, vehicle: $('vehicle').value};
+  const p = {km, hours, vehicle: $('vehicle').value, guide: $('guide').checked};
   const o = calcFare(p);
   const grand = o.total * buses;
   const cmp = Object.keys(RATES).map(v=>{
@@ -327,6 +337,7 @@ function render(){
     <div class="total">
       <span class="amount">${yen(grand)}</span><span class="unit">税込 / ${buses}台</span>
       <span class="badge">${o.rate.name}</span><span class="badge">往復</span>
+      ${p.guide ? `<span class="badge">バスガイド付き</span>` : ''}
       ${o.useDriver ? `<span class="badge warn">交替運転者（自動判定）</span>` : ''}
     </div>
     ${routeLine}
@@ -340,6 +351,7 @@ function render(){
         ${o.useDriver ? `
         <tr><td>交替運転者配置料金（時間）</td><td class="num">${o.totalH} 時間</td><td class="num">${yen(DRIVER.hour)}</td><td class="num">${yen(o.driverTime)}</td></tr>
         <tr><td>交替運転者配置料金（キロ）</td><td class="num">${o.totalKm} km</td><td class="num">${yen(DRIVER.km)}</td><td class="num">${yen(o.driverKm)}</td></tr>` : ''}
+        ${o.guideFee ? `<tr><td>バスガイド料<br><small class="muted">1台につき1名</small></td><td class="num">1名 × ${TRIP_DAYS}日</td><td class="num">${yen(GUIDE_FEE)}</td><td class="num">${yen(o.guideFee)}</td></tr>` : ''}
         <tr><td>小計（税抜）</td><td></td><td></td><td class="num">${yen(o.subtotal)}</td></tr>
         <tr><td>消費税（10%）</td><td></td><td></td><td class="num">${yen(o.tax)}</td></tr>
         <tr><td>1台あたり合計（税込）</td><td></td><td></td><td class="num">${yen(o.total)}</td></tr>
