@@ -65,9 +65,6 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .unitwrap input{padding-right:46px}
 .unitwrap em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--muted);font-size:.85rem}
 .num-step{font-size:1.3rem}
-.toggle{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.toggle button{border:0;background:var(--bg);color:var(--fg);font:inherit;font-size:.88rem;padding:7px 14px;cursor:pointer}
-.toggle button.active{background:var(--accent);color:#fff;font-weight:700}
 button.primary{
   width:100%;padding:12px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:inherit;
   font-size:1rem;font-weight:700;cursor:pointer;margin:4px 0 8px;
@@ -77,9 +74,6 @@ button.primary:disabled{opacity:.6;cursor:wait}
 .status.error{color:var(--warn)}
 fieldset{border:1px solid var(--line);border-radius:8px;padding:12px 14px 2px;margin:0 0 14px}
 legend{font-size:.85rem;color:var(--muted);padding:0 6px}
-details{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
-summary{cursor:pointer;color:var(--accent);font-size:.9rem;font-weight:700}
-details .field:first-of-type{margin-top:12px}
 .hint{font-size:.78rem;color:var(--muted);margin-top:4px}
 
 /* 結果 */
@@ -135,13 +129,6 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
           <input type="text" id="to" list="places" value="東京ディズニーランド" placeholder="例：東京ディズニーランド" autocomplete="off">
         </div>
         <datalist id="places"></datalist>
-        <div class="field">
-          <label>行程</label>
-          <div class="toggle" id="tripToggle">
-            <button type="button" data-trip="round" class="active">往復</button>
-            <button type="button" data-trip="oneway">片道</button>
-          </div>
-        </div>
         <button type="submit" class="primary" id="calc">距離・時間を取得して計算</button>
         <p class="status" id="status" aria-live="polite"></p>
         <div class="row2">
@@ -154,7 +141,7 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
             <div class="unitwrap"><input type="number" id="hours" min="0" step="0.5" placeholder="自動" inputmode="decimal"><em>時間</em></div>
           </div>
         </div>
-        <p class="hint" id="autoNote">自動取得後も手で書き換えられます。現地での滞在・待機時間を含める場合は総運行時間を増やしてください。</p>
+        <p class="hint" id="autoNote">往復の値です。自動取得後も手で書き換えられます。現地での滞在・待機時間を含める場合は総運行時間を増やしてください。</p>
       </fieldset>
 
       <div class="field">
@@ -166,29 +153,6 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
           <option value="commuter">コミューター（〜14席）</option>
         </select>
       </div>
-
-      <details>
-        <summary>詳細条件（任意）</summary>
-        <div class="row2">
-          <div class="field">
-            <label for="nights">宿泊数</label>
-            <div class="unitwrap"><input type="number" id="nights" min="0" max="10" step="1" value="0"><em>泊</em></div>
-            <p class="hint">宿泊地での点呼点検（1泊2時間）を加算します。</p>
-          </div>
-          <div class="field">
-            <label for="nightHours">深夜早朝（22〜5時）の時間</label>
-            <div class="unitwrap"><input type="number" id="nightHours" min="0" step="1" value="0"><em>時間</em></div>
-          </div>
-        </div>
-        <div class="field">
-          <label for="driverMode">交替運転者（2名乗務）</label>
-          <select id="driverMode">
-            <option value="auto">自動判定（1日の運転9時間超または500km超で必要）</option>
-            <option value="on">常に配置する</option>
-            <option value="off">配置しない</option>
-          </select>
-        </div>
-      </details>
     </form>
   </section>
 
@@ -202,11 +166,11 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
 <section class="panel">
   <h2>計算の前提</h2>
   <ul class="notes">
-    <li>運賃は「時間制運賃＋キロ制運賃」の併用制。総運行時間（出庫から帰庫までの拘束時間）に出庫前・帰庫後の点呼点検各1時間を加算し、宿泊を伴う場合は1泊につき2時間を加算します。走行時間が3時間未満の場合は3時間として計算します。</li>
+    <li>運賃は「時間制運賃＋キロ制運賃」の併用制。総運行時間（出庫から帰庫までの拘束時間）に出庫前・帰庫後の点呼点検各1時間を加算します。走行時間が3時間未満の場合は3時間として計算します。</li>
     <li>端数処理：距離は10km未満を10kmに切り上げ、時間は30分未満切り捨て・30分以上切り上げ。</li>
-    <li>基準額（下限）：大型 150円/km・7,430円/時、中型 130円/km・6,270円/時、小型 110円/km・5,490円/時、コミューター 100円/km・4,900円/時。交替運転者配置料金 30円/km・2,610円/時。深夜早朝（22時〜翌5時）は時間制部分が2割増。消費税10%。</li>
-    <li>総運行時間の自動値は、地図サービス（OpenStreetMap / OSRM）の自動車経路時間に休憩・速度差を見込んだ1.25倍を掛けたものです。現地滞在時間は含まれません。経路サービスに接続できない場合は直線距離からの概算に切り替わります。</li>
-    <li>有料道路利用料・駐車料・ガイド料・乗務員宿泊料などの実費は含みません。表示額は法令上の下限額に基づく目安で、正式な見積りは営業所へお問い合わせください。</li>
+    <li>基準額（下限）：大型 150円/km・7,430円/時、中型 130円/km・6,270円/時、小型 110円/km・5,490円/時、コミューター 100円/km・4,900円/時。運転9時間超または500km超の場合は交替運転者配置料金（30円/km・2,610円/時）を加算。消費税10%。</li>
+    <li>総運行距離・総運行時間は往復（出発地→到着地→出発地）の値で、地図サービス（OpenStreetMap / OSRM）の自動車経路時間に休憩・速度差を見込んだ1.25倍を掛けたものです。現地滞在時間は含まれません。経路サービスに接続できない場合は直線距離からの概算に切り替わります。</li>
+    <li>日帰り運行を前提としています。宿泊を伴う行程、深夜早朝（22時〜翌5時）の運行、有料道路利用料・駐車料・ガイド料などの実費は含みません。表示額は法令上の下限額に基づく目安で、正式な見積りは営業所へお問い合わせください。</li>
   </ul>
 </section>
 </div>
@@ -223,7 +187,6 @@ const RATES = {
   commuter: {name:'コミューター車', km:100, hour:4900},
 };
 const DRIVER = {km:30, hour:2610};
-const NIGHT_RATE = 0.2;
 const TAX = 0.10;
 const MIN_DRIVE_H = 3;
 const BUS_TIME_FACTOR = 1.25;
@@ -254,22 +217,17 @@ function roundKm(km){ return Math.ceil(km / 10) * 10; }
 // ===== 料金計算（1台あたり） =====
 function calcFare(p){
   const r = RATES[p.vehicle];
-  const days = p.nights + 1;
-  const driveH = Math.max(MIN_DRIVE_H * days, roundHours(p.hours));
-  const inspH = 2 + p.nights * 2;
+  const driveH = Math.max(MIN_DRIVE_H, roundHours(p.hours));
+  const inspH = 2;                                  // 出庫前・帰庫後の点呼点検
   const totalH = driveH + inspH;
   const totalKm = roundKm(p.km);
   const timeFare = totalH * r.hour, kmFare = totalKm * r.km;
-  const needDriver = (p.hours / days) > LEGAL_DRIVE_H || (p.km / days) > LEGAL_KM;
-  const useDriver = p.driverMode === 'on' ? true : p.driverMode === 'off' ? false : needDriver;
+  const useDriver = p.hours > LEGAL_DRIVE_H || p.km > LEGAL_KM;   // 交替運転者 自動判定
   const driverTime = useDriver ? totalH * DRIVER.hour : 0;
   const driverKm = useDriver ? totalKm * DRIVER.km : 0;
-  const nightH = Math.min(p.nightH, totalH);
-  const nightFare = Math.round(nightH * (r.hour + (useDriver ? DRIVER.hour : 0)) * NIGHT_RATE);
-  const subtotal = timeFare + kmFare + driverTime + driverKm + nightFare;
+  const subtotal = timeFare + kmFare + driverTime + driverKm;
   const tax = Math.round(subtotal * TAX);
-  return {rate:r, driveH, inspH, totalH, totalKm, timeFare, kmFare, useDriver, autoDriver: p.driverMode==='auto' && useDriver,
-          driverTime, driverKm, nightH, nightFare, subtotal, tax, total: subtotal + tax};
+  return {rate:r, driveH, inspH, totalH, totalKm, timeFare, kmFare, useDriver, driverTime, driverKm, subtotal, tax, total: subtotal + tax};
 }
 
 // ===== 経路取得 =====
@@ -303,7 +261,7 @@ function estimateRoute(a,b){
 }
 
 // ===== UI =====
-const state = {trip:'round', route:null, points:null, autoKm:null, autoH:null, from:'', to:''};
+const state = {route:null, points:null, autoKm:null, autoH:null, from:'', to:''};
 const form = $('form'), status = $('status'), result = $('result'), mapEl = $('map');
 let map, layer;
 function setStatus(msg, isErr){ status.textContent = msg; status.classList.toggle('error', !!isErr); }
@@ -337,21 +295,15 @@ form.addEventListener('submit', async e=>{
 
 function applyRouteToInputs(){
   if (!state.route) return;
-  const mult = state.trip === 'round' ? 2 : 1;
-  state.autoKm = Math.round(state.route.km * mult);
-  state.autoH = Math.round(state.route.hours * BUS_TIME_FACTOR * mult * 2) / 2;
+  // 往復：片道の距離・時間を2倍
+  state.autoKm = Math.round(state.route.km * 2);
+  state.autoH = Math.round(state.route.hours * BUS_TIME_FACTOR * 2 * 2) / 2;
   $('km').value = state.autoKm;
   $('hours').value = state.autoH;
   render();
 }
 
-$('tripToggle').addEventListener('click', e=>{
-  const b = e.target.closest('button'); if (!b) return;
-  state.trip = b.dataset.trip;
-  [...$('tripToggle').children].forEach(x=>x.classList.toggle('active', x === b));
-  applyRouteToInputs(); render();
-});
-['buses','km','hours','vehicle','nights','nightHours','driverMode'].forEach(id=>$(id).addEventListener('input', render));
+['buses','km','hours','vehicle'].forEach(id=>$(id).addEventListener('input', render));
 
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -362,8 +314,7 @@ function render(){
     result.innerHTML = '<p class="placeholder">出発地・到着地を入力して「距離・時間を取得して計算」を押すか、総運行距離・総運行時間を直接入力してください。</p>';
     return;
   }
-  const p = {km, hours, vehicle: $('vehicle').value, nights: Math.max(0, Math.round(num('nights',0))),
-             nightH: num('nightHours',0), driverMode: $('driverMode').value};
+  const p = {km, hours, vehicle: $('vehicle').value};
   const o = calcFare(p);
   const grand = o.total * buses;
   const cmp = Object.keys(RATES).map(v=>{
@@ -371,13 +322,12 @@ function render(){
     return `<div class="${v===p.vehicle?'active':''}"><b>${RATES[v].name}${buses>1?`×${buses}台`:''}</b><span>${yen(r.total*buses)}</span></div>`;
   }).join('');
   const manual = state.autoKm !== null && (km !== state.autoKm || hours !== state.autoH);
-  const routeLine = state.from ? `<p class="perbus">${esc(state.from)} → ${esc(state.to)}（${state.trip==='round'?'往復':'片道'}）${state.route && state.route.estimated ? '　<span class="muted">直線距離からの概算</span>' : ''}</p>` : '';
+  const routeLine = state.from ? `<p class="perbus">${esc(state.from)} → ${esc(state.to)}（往復）${state.route && state.route.estimated ? '　<span class="muted">直線距離からの概算</span>' : ''}</p>` : '';
   result.innerHTML = `
     <div class="total">
       <span class="amount">${yen(grand)}</span><span class="unit">税込 / ${buses}台</span>
-      <span class="badge">${o.rate.name}</span>
-      ${p.nights ? `<span class="badge">${p.nights}泊${p.nights+1}日</span>` : ''}
-      ${o.useDriver ? `<span class="badge warn">交替運転者${o.autoDriver?'（自動判定）':''}</span>` : ''}
+      <span class="badge">${o.rate.name}</span><span class="badge">往復</span>
+      ${o.useDriver ? `<span class="badge warn">交替運転者（自動判定）</span>` : ''}
     </div>
     ${routeLine}
     <p class="perbus">1台あたり <b>${yen(o.total)}</b>　総運行距離 <b>${km.toLocaleString('ja-JP')} km</b>・総運行時間 <b>${hours} 時間</b>${manual?'（手入力）':''}</p>
@@ -390,7 +340,6 @@ function render(){
         ${o.useDriver ? `
         <tr><td>交替運転者配置料金（時間）</td><td class="num">${o.totalH} 時間</td><td class="num">${yen(DRIVER.hour)}</td><td class="num">${yen(o.driverTime)}</td></tr>
         <tr><td>交替運転者配置料金（キロ）</td><td class="num">${o.totalKm} km</td><td class="num">${yen(DRIVER.km)}</td><td class="num">${yen(o.driverKm)}</td></tr>` : ''}
-        ${o.nightFare ? `<tr><td>深夜早朝運行料金（2割増）</td><td class="num">${o.nightH} 時間</td><td class="num">—</td><td class="num">${yen(o.nightFare)}</td></tr>` : ''}
         <tr><td>小計（税抜）</td><td></td><td></td><td class="num">${yen(o.subtotal)}</td></tr>
         <tr><td>消費税（10%）</td><td></td><td></td><td class="num">${yen(o.tax)}</td></tr>
         <tr><td>1台あたり合計（税込）</td><td></td><td></td><td class="num">${yen(o.total)}</td></tr>
