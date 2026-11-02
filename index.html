@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>貸切バス料金シミュレータ</title>
-<meta name="description" content="地図に出発地・到着地を置き、台数を入れるだけで、貸切バスの概算料金（法定下限額ベース）を試算します。">
+<meta name="description" content="出発地・到着地と台数を入れるだけで、総運行距離・総運行時間を自動取得し、貸切バスの概算料金（法定下限額ベース）を試算します。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Sans:wght@500;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: 上に地図（出発地・到着地を置く）、下に入力3項目と結果。数字は等幅で揃える。 */
+/* Layout: 左に入力パネル（出発地・到着地・台数・距離・時間）、右に結果と経路地図。数字は等幅で揃える。 */
 :root{
   --bg:#f6f4ef;
   --panel:#ffffff;
@@ -18,7 +18,6 @@
   --line:#dcd8cf;
   --accent:#0f4c81;
   --accent-soft:#e4edf6;
-  --dest:#b8432f;
   --warn:#9a5b00;
   --warn-soft:#fff3dc;
   --font-body:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;
@@ -29,13 +28,13 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#151a22;--panel:#1e2531;--fg:#eef1f5;--muted:#a3adbc;--line:#333c4b;
-    --accent:#7fb3e6;--accent-soft:#223449;--dest:#f08a74;--warn:#f0b35c;--warn-soft:#3a2d16;
+    --accent:#7fb3e6;--accent-soft:#223449;--warn:#f0b35c;--warn-soft:#3a2d16;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#151a22;--panel:#1e2531;--fg:#eef1f5;--muted:#a3adbc;--line:#333c4b;
-  --accent:#7fb3e6;--accent-soft:#223449;--dest:#f08a74;--warn:#f0b35c;--warn-soft:#3a2d16;
+  --accent:#7fb3e6;--accent-soft:#223449;--warn:#f0b35c;--warn-soft:#3a2d16;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -49,35 +48,10 @@ body{
 .wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
 header h1{font-family:var(--font-head);font-size:1.55rem;margin:0 0 4px;letter-spacing:.01em;text-wrap:balance}
 header p{margin:0;color:var(--muted);font-size:.92rem}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;min-width:0}
-.panel h2{font-size:1rem;margin:0 0 12px;font-family:var(--font-head);letter-spacing:.02em}
 .grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
 @media (max-width:820px){.grid{grid-template-columns:1fr}}
-
-/* 地図まわり */
-.maptools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
-.maptools .search{flex:1 1 220px;display:flex;gap:6px;min-width:0}
-.maptools input[type=text]{flex:1;min-width:0}
-.modebtn{padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;font-size:.9rem;cursor:pointer;display:flex;align-items:center;gap:6px}
-.modebtn .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
-.modebtn[data-mode="to"] .dot{background:var(--dest)}
-.modebtn.active{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
-.modebtn.ghost{border-style:dashed}
-#map{height:380px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
-@media (max-width:820px){#map{height:300px}}
-.points{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;font-size:.88rem}
-@media (max-width:560px){.points{grid-template-columns:1fr}}
-.points div{border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:0}
-.points b{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);font-weight:400}
-.points b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent)}
-.points div.to b::before{background:var(--dest)}
-.points span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mapstatus{font-size:.85rem;color:var(--muted);margin-top:8px;min-height:1.5em}
-.mapstatus.error{color:var(--warn)}
-.pin{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-.pin.from{background:#0f4c81}.pin.to{background:#b8432f}
-
-/* 入力 */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;min-width:0}
+.panel h2{font-size:1rem;margin:0 0 14px;font-family:var(--font-head);letter-spacing:.02em}
 label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
 .field{margin-bottom:14px}
 input[type=text],input[type=number],select{
@@ -90,14 +64,23 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .unitwrap{position:relative}
 .unitwrap input{padding-right:46px}
 .unitwrap em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--muted);font-size:.85rem}
-.num-step{font-size:1.4rem;padding:8px 12px}
+.num-step{font-size:1.3rem}
 .toggle{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .toggle button{border:0;background:var(--bg);color:var(--fg);font:inherit;font-size:.88rem;padding:7px 14px;cursor:pointer}
 .toggle button.active{background:var(--accent);color:#fff;font-weight:700}
-.hint{font-size:.78rem;color:var(--muted);margin-top:4px}
+button.primary{
+  width:100%;padding:12px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:inherit;
+  font-size:1rem;font-weight:700;cursor:pointer;margin:4px 0 8px;
+}
+button.primary:disabled{opacity:.6;cursor:wait}
+.status{font-size:.85rem;color:var(--muted);min-height:1.5em;margin:0 0 10px}
+.status.error{color:var(--warn)}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:12px 14px 2px;margin:0 0 14px}
+legend{font-size:.85rem;color:var(--muted);padding:0 6px}
 details{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
 summary{cursor:pointer;color:var(--accent);font-size:.9rem;font-weight:700}
 details .field:first-of-type{margin-top:12px}
+.hint{font-size:.78rem;color:var(--muted);margin-top:4px}
 
 /* 結果 */
 .total{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:6px}
@@ -113,6 +96,7 @@ td.num,th.num{text-align:right;font-family:var(--font-num);font-variant-numeric:
 tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
 .tablewrap{overflow-x:auto}
 .muted{color:var(--muted)}
+#map{height:280px;border-radius:8px;border:1px solid var(--line);margin-top:14px;background:var(--bg)}
 .cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px}
 .cmp div{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
 .cmp div.active{border-color:var(--accent);background:var(--accent-soft)}
@@ -121,62 +105,58 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
 .notes{font-size:.82rem;color:var(--muted);line-height:1.7;margin:0;padding-left:1.2em}
 .notes li{margin-bottom:2px}
 .placeholder{color:var(--muted);padding:30px 0;text-align:center}
-@media (prefers-reduced-motion:no-preference){.modebtn,.toggle button{transition:background .15s}}
+@media (prefers-reduced-motion:no-preference){button.primary{transition:filter .15s}button.primary:hover{filter:brightness(1.1)}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
   <h1>貸切バス料金シミュレータ</h1>
-  <p>地図に出発地と到着地を置くと総運行距離・総運行時間が自動で入り、台数を選ぶだけで概算料金（2025年11月1日改定の法定下限額ベース）を表示します。</p>
+  <p>出発地・到着地を入力すると総運行距離・総運行時間を自動で取得し、台数を選ぶだけで概算料金（2025年11月1日改定の法定下限額ベース）を表示します。</p>
 </header>
-
-<section class="panel" aria-labelledby="map-h">
-  <h2 id="map-h">① 地図に出発地・到着地を置く</h2>
-  <div class="maptools">
-    <button type="button" class="modebtn active" data-mode="from" id="btnFrom"><span class="dot"></span>出発地を置く</button>
-    <button type="button" class="modebtn" data-mode="to" id="btnTo"><span class="dot"></span>到着地を置く</button>
-    <button type="button" class="modebtn ghost" id="btnClear">やり直す</button>
-    <div class="search">
-      <input type="text" id="search" placeholder="地名で地図を移動（例：河口湖駅）" autocomplete="off">
-      <button type="button" class="modebtn" id="btnSearch">移動</button>
-    </div>
-  </div>
-  <div id="map" role="application" aria-label="出発地と到着地を置く地図"></div>
-  <div class="points">
-    <div class="from"><b>出発地</b><span id="fromName">地図をクリックして置いてください</span></div>
-    <div class="to"><b>到着地</b><span id="toName">出発地を置いた後にクリック</span></div>
-  </div>
-  <p class="mapstatus" id="mapstatus" aria-live="polite">地図をクリックすると出発地のピンが立ちます。ピンはドラッグで動かせます。</p>
-</section>
 
 <div class="grid">
   <section class="panel" aria-labelledby="in-h">
-    <h2 id="in-h">② 運行条件</h2>
+    <h2 id="in-h">運行条件を入力</h2>
     <form id="form" novalidate>
       <div class="field">
-        <label for="buses">台数</label>
+        <label for="buses">① 台数</label>
         <div class="unitwrap"><input type="number" id="buses" class="num-step" min="1" max="50" step="1" value="1" inputmode="numeric"><em>台</em></div>
       </div>
-      <div class="field">
-        <label>行程</label>
-        <div class="toggle" id="tripToggle">
-          <button type="button" data-trip="round" class="active">往復</button>
-          <button type="button" data-trip="oneway">片道</button>
-        </div>
-        <p class="hint">往復は到着地から出発地へ戻る距離・時間を含みます。</p>
-      </div>
-      <div class="row2">
+
+      <fieldset>
+        <legend>②③ 総運行距離・総運行時間（出発地・到着地から自動取得）</legend>
         <div class="field">
-          <label for="km">総運行距離</label>
-          <div class="unitwrap"><input type="number" id="km" min="0" step="1" placeholder="地図から自動" inputmode="decimal"><em>km</em></div>
+          <label for="from">出発地（乗車場所）</label>
+          <input type="text" id="from" list="places" value="富士山駅" placeholder="例：新宿駅、富士吉田市" autocomplete="off">
         </div>
         <div class="field">
-          <label for="hours">総運行時間</label>
-          <div class="unitwrap"><input type="number" id="hours" min="0" step="0.5" placeholder="地図から自動" inputmode="decimal"><em>時間</em></div>
+          <label for="to">到着地（主な目的地）</label>
+          <input type="text" id="to" list="places" value="東京ディズニーランド" placeholder="例：東京ディズニーランド" autocomplete="off">
         </div>
-      </div>
-      <p class="hint" id="autoNote">地図から取得した値です。現地での滞在・待機時間を含める場合は総運行時間を書き換えてください。</p>
+        <datalist id="places"></datalist>
+        <div class="field">
+          <label>行程</label>
+          <div class="toggle" id="tripToggle">
+            <button type="button" data-trip="round" class="active">往復</button>
+            <button type="button" data-trip="oneway">片道</button>
+          </div>
+        </div>
+        <button type="submit" class="primary" id="calc">距離・時間を取得して計算</button>
+        <p class="status" id="status" aria-live="polite"></p>
+        <div class="row2">
+          <div class="field">
+            <label for="km">② 総運行距離</label>
+            <div class="unitwrap"><input type="number" id="km" min="0" step="1" placeholder="自動" inputmode="decimal"><em>km</em></div>
+          </div>
+          <div class="field">
+            <label for="hours">③ 総運行時間</label>
+            <div class="unitwrap"><input type="number" id="hours" min="0" step="0.5" placeholder="自動" inputmode="decimal"><em>時間</em></div>
+          </div>
+        </div>
+        <p class="hint" id="autoNote">自動取得後も手で書き換えられます。現地での滞在・待機時間を含める場合は総運行時間を増やしてください。</p>
+      </fieldset>
+
       <div class="field">
         <label for="vehicle">車種</label>
         <select id="vehicle">
@@ -193,7 +173,7 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
           <div class="field">
             <label for="nights">宿泊数</label>
             <div class="unitwrap"><input type="number" id="nights" min="0" max="10" step="1" value="0"><em>泊</em></div>
-            <p class="hint">宿泊地での点呼点検（各日2時間）を加算します。</p>
+            <p class="hint">宿泊地での点呼点検（1泊2時間）を加算します。</p>
           </div>
           <div class="field">
             <label for="nightHours">深夜早朝（22〜5時）の時間</label>
@@ -213,8 +193,9 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
   </section>
 
   <section class="panel" aria-labelledby="out-h">
-    <h2 id="out-h">③ 概算料金</h2>
-    <div id="result"><p class="placeholder">地図に出発地と到着地を置くと、ここに概算料金が表示されます。</p></div>
+    <h2 id="out-h">概算料金</h2>
+    <div id="result"><p class="placeholder">出発地・到着地を入力して「距離・時間を取得して計算」を押してください。</p></div>
+    <div id="map" hidden></div>
   </section>
 </div>
 
@@ -224,7 +205,7 @@ tr.sum td{font-weight:700;border-top:2px solid var(--fg)}
     <li>運賃は「時間制運賃＋キロ制運賃」の併用制。総運行時間（出庫から帰庫までの拘束時間）に出庫前・帰庫後の点呼点検各1時間を加算し、宿泊を伴う場合は1泊につき2時間を加算します。走行時間が3時間未満の場合は3時間として計算します。</li>
     <li>端数処理：距離は10km未満を10kmに切り上げ、時間は30分未満切り捨て・30分以上切り上げ。</li>
     <li>基準額（下限）：大型 150円/km・7,430円/時、中型 130円/km・6,270円/時、小型 110円/km・5,490円/時、コミューター 100円/km・4,900円/時。交替運転者配置料金 30円/km・2,610円/時。深夜早朝（22時〜翌5時）は時間制部分が2割増。消費税10%。</li>
-    <li>総運行時間の自動値は、地図サービス（OpenStreetMap / OSRM）の自動車経路時間に休憩・速度差を見込んだ1.25倍を掛けたものです。現地滞在時間は含まれません。</li>
+    <li>総運行時間の自動値は、地図サービス（OpenStreetMap / OSRM）の自動車経路時間に休憩・速度差を見込んだ1.25倍を掛けたものです。現地滞在時間は含まれません。経路サービスに接続できない場合は直線距離からの概算に切り替わります。</li>
     <li>有料道路利用料・駐車料・ガイド料・乗務員宿泊料などの実費は含みません。表示額は法令上の下限額に基づく目安で、正式な見積りは営業所へお問い合わせください。</li>
   </ul>
 </section>
@@ -248,6 +229,23 @@ const MIN_DRIVE_H = 3;
 const BUS_TIME_FACTOR = 1.25;
 const LEGAL_DRIVE_H = 9, LEGAL_KM = 500;
 
+// ===== 経路取得できない場合の内蔵座標（主要地点） =====
+const PLACES = {
+  '富士山駅':[35.4876,138.7975],'河口湖駅':[35.4986,138.7659],'富士急ハイランド':[35.4876,138.7799],'河口湖':[35.5171,138.7497],
+  '山中湖':[35.4136,138.8753],'富士吉田市':[35.4876,138.8072],'御殿場駅':[35.3085,138.9348],'御殿場プレミアム・アウトレット':[35.3079,138.9560],
+  '甲府駅':[35.6670,138.5689],'大月駅':[35.6112,138.9409],'箱根湯本駅':[35.2325,139.1070],'熱海駅':[35.1037,139.0779],
+  '新宿駅':[35.6896,139.7006],'東京駅':[35.6812,139.7671],'渋谷駅':[35.6580,139.7016],'池袋駅':[35.7295,139.7109],'品川駅':[35.6284,139.7387],
+  '東京ディズニーランド':[35.6329,139.8804],'東京ディズニーリゾート':[35.6329,139.8804],'羽田空港':[35.5494,139.7798],'成田空港':[35.7720,140.3929],
+  '横浜駅':[35.4658,139.6223],'みなとみらい':[35.4571,139.6346],'鎌倉駅':[35.3192,139.5467],'八王子駅':[35.6554,139.3389],'立川駅':[35.6980,139.4138],
+  '千葉駅':[35.6132,140.1134],'大宮駅':[35.9064,139.6237],'高崎駅':[36.3228,139.0128],'宇都宮駅':[36.5591,139.8986],'日光東照宮':[36.7580,139.5988],
+  '水戸駅':[36.3708,140.4760],'軽井沢駅':[36.3426,138.6350],'長野駅':[36.6431,138.1887],'松本駅':[36.2307,137.9640],'諏訪湖':[36.0471,138.0929],
+  '静岡駅':[34.9719,138.3890],'浜松駅':[34.7038,137.7350],'沼津駅':[35.1020,138.8588],'名古屋駅':[35.1709,136.8815],'金沢駅':[36.5780,136.6480],
+  '新潟駅':[37.9122,139.0618],'仙台駅':[38.2602,140.8824],'京都駅':[34.9858,135.7588],'大阪駅':[34.7025,135.4959],'ユニバーサル・スタジオ・ジャパン':[34.6654,135.4323],
+  '神戸駅':[34.6797,135.1781],'広島駅':[34.3978,132.4753],'博多駅':[33.5902,130.4207],
+};
+const dl = document.getElementById('places');
+Object.keys(PLACES).forEach(p=>{const o=document.createElement('option');o.value=p;dl.appendChild(o);});
+
 const $ = id => document.getElementById(id);
 const yen = n => '¥' + Math.round(n).toLocaleString('ja-JP');
 function roundHours(h){ const f = Math.floor(h); return (h - f) >= 0.5 ? f + 1 : f; }
@@ -262,8 +260,7 @@ function calcFare(p){
   const totalH = driveH + inspH;
   const totalKm = roundKm(p.km);
   const timeFare = totalH * r.hour, kmFare = totalKm * r.km;
-  const perDayH = p.hours / days, perDayKm = p.km / days;
-  const needDriver = perDayH > LEGAL_DRIVE_H || perDayKm > LEGAL_KM;
+  const needDriver = (p.hours / days) > LEGAL_DRIVE_H || (p.km / days) > LEGAL_KM;
   const useDriver = p.driverMode === 'on' ? true : p.driverMode === 'off' ? false : needDriver;
   const driverTime = useDriver ? totalH * DRIVER.hour : 0;
   const driverKm = useDriver ? totalKm * DRIVER.km : 0;
@@ -275,104 +272,69 @@ function calcFare(p){
           driverTime, driverKm, nightH, nightFare, subtotal, tax, total: subtotal + tax};
 }
 
-// ===== 地図 =====
-const state = {from:null, to:null, mode:'from', trip:'round', route:null, autoKm:null, autoH:null};
-const map = L.map('map', {center:[35.5, 138.9], zoom:9});
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-const icon = cls => L.divIcon({className:'', html:`<div class="pin ${cls}"></div>`, iconSize:[26,26], iconAnchor:[13,26]});
-let routeLayer = null;
-const mapstatus = $('mapstatus');
-function setMapStatus(msg, isErr){ mapstatus.textContent = msg; mapstatus.classList.toggle('error', !!isErr); }
-
-function setMode(m){
-  state.mode = m;
-  $('btnFrom').classList.toggle('active', m === 'from');
-  $('btnTo').classList.toggle('active', m === 'to');
-}
-$('btnFrom').addEventListener('click', ()=>setMode('from'));
-$('btnTo').addEventListener('click', ()=>setMode('to'));
-$('btnClear').addEventListener('click', ()=>{
-  ['from','to'].forEach(k=>{ if (state[k]){ state[k].marker.remove(); state[k] = null; } });
-  if (routeLayer){ routeLayer.remove(); routeLayer = null; }
-  state.autoKm = state.autoH = null; $('km').value = ''; $('hours').value = '';
-  $('fromName').textContent = '地図をクリックして置いてください'; $('toName').textContent = '出発地を置いた後にクリック';
-  setMode('from'); setMapStatus('地図をクリックすると出発地のピンが立ちます。'); render();
-});
-
-map.on('click', e => placePoint(state.mode, e.latlng));
-
-function placePoint(kind, latlng){
-  if (state[kind]){ state[kind].marker.setLatLng(latlng); }
-  else {
-    const marker = L.marker(latlng, {icon: icon(kind), draggable:true}).addTo(map);
-    marker.on('dragend', ()=>{ state[kind].latlng = marker.getLatLng(); afterPointChange(kind); });
-    state[kind] = {marker, latlng};
-  }
-  state[kind].latlng = latlng;
-  afterPointChange(kind);
-  if (kind === 'from' && !state.to) setMode('to');
-  else if (kind === 'to' && !state.from) setMode('from');
-}
-async function afterPointChange(kind){
-  const el = $(kind + 'Name');
-  el.textContent = fmtLatLng(state[kind].latlng);
-  reverseGeocode(state[kind].latlng).then(name => { if (name) el.textContent = name; }).catch(()=>{});
-  if (state.from && state.to) await updateRoute();
-}
-function fmtLatLng(ll){ return `${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}`; }
-
-async function reverseGeocode(ll){
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=ja&lat=${ll.lat}&lon=${ll.lng}`;
-  const res = await fetch(url); if (!res.ok) return null;
-  const j = await res.json(); const a = j.address || {};
-  const parts = [a.state, a.city || a.town || a.village || a.county, a.suburb || a.neighbourhood || a.quarter, a.road, a.amenity || a.tourism || a.railway || a.building].filter(Boolean);
-  return parts.length ? parts.join(' ') : (j.display_name || '').split(',').slice(0,3).join(' ');
-}
+// ===== 経路取得 =====
 async function geocode(q){
+  if (PLACES[q]) return {lat:PLACES[q][0], lon:PLACES[q][1]};
   const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=' + encodeURIComponent(q);
-  const res = await fetch(url); if (!res.ok) throw new Error('search');
-  const j = await res.json(); if (!j.length) throw new Error(`「${q}」が見つかりませんでした`);
-  return L.latLng(+j[0].lat, +j[0].lon);
+  const res = await fetch(url, {headers:{'Accept':'application/json'}});
+  if (!res.ok) throw new Error('geocode');
+  const j = await res.json();
+  if (!j.length) throw new Error(`「${q}」の場所が見つかりませんでした`);
+  return {lat:+j[0].lat, lon:+j[0].lon};
 }
-$('btnSearch').addEventListener('click', doSearch);
-$('search').addEventListener('keydown', e=>{ if (e.key === 'Enter'){ e.preventDefault(); doSearch(); } });
-async function doSearch(){
-  const q = $('search').value.trim(); if (!q) return;
-  try { const ll = await geocode(q); map.setView(ll, 13); setMapStatus(`「${q}」付近に移動しました。地図をクリックしてピンを置いてください。`); }
-  catch(err){ setMapStatus(err.message, true); }
+async function route(a, b){
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('route');
+  const j = await res.json();
+  if (!j.routes || !j.routes.length) throw new Error('route');
+  const r = j.routes[0];
+  return {km: r.distance/1000, hours: r.duration/3600, geometry: r.geometry.coordinates.map(c=>[c[1],c[0]])};
 }
-
 function haversine(a,b){
   const R=6371, toR=x=>x*Math.PI/180;
-  const dLat=toR(b.lat-a.lat), dLon=toR(b.lng-a.lng);
+  const dLat=toR(b.lat-a.lat), dLon=toR(b.lon-a.lon);
   const s=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(s));
 }
-let routeSeq = 0;
-async function updateRoute(){
-  const seq = ++routeSeq;
-  const a = state.from.latlng, b = state.to.latlng;
-  setMapStatus('経路を検索しています…');
-  let km, hours, geometry, estimated = false;
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
-    const res = await fetch(url); if (!res.ok) throw new Error('route');
-    const j = await res.json(); if (!j.routes || !j.routes.length) throw new Error('route');
-    const r = j.routes[0];
-    km = r.distance/1000; hours = r.duration/3600; geometry = r.geometry.coordinates.map(c=>[c[1],c[0]]);
-  } catch(err){
-    km = haversine(a,b)*1.3; hours = km/55; geometry = [[a.lat,a.lng],[b.lat,b.lng]]; estimated = true;
-  }
-  if (seq !== routeSeq) return;
-  state.route = {km, hours, geometry, estimated};
-  if (routeLayer) routeLayer.remove();
-  routeLayer = L.polyline(geometry, {color:'#0f4c81', weight:4, dashArray: estimated ? '8 8' : null}).addTo(map);
-  map.fitBounds(routeLayer.getBounds(), {padding:[30,30]});
-  applyRouteToInputs();
-  setMapStatus(estimated
-    ? `経路サービスに接続できないため直線距離からの概算です。片道 約${km.toFixed(0)} km`
-    : `片道 約${km.toFixed(0)} km・自動車で約${hours.toFixed(1)} 時間（OpenStreetMap / OSRM）`);
+function estimateRoute(a,b){
+  const km = haversine(a,b)*1.3;
+  return {km, hours: km/55, geometry:[[a.lat,a.lon],[b.lat,b.lon]], estimated:true};
 }
+
+// ===== UI =====
+const state = {trip:'round', route:null, points:null, autoKm:null, autoH:null, from:'', to:''};
+const form = $('form'), status = $('status'), result = $('result'), mapEl = $('map');
+let map, layer;
+function setStatus(msg, isErr){ status.textContent = msg; status.classList.toggle('error', !!isErr); }
+function num(id, def){ const v = parseFloat($(id).value); return isNaN(v) ? def : v; }
+
+form.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const from = $('from').value.trim(), to = $('to').value.trim();
+  if (!from || !to){ setStatus('出発地と到着地を入力してください。', true); return; }
+  $('calc').disabled = true;
+  setStatus('経路を検索しています…');
+  try {
+    let a, b;
+    try { [a, b] = await Promise.all([geocode(from), geocode(to)]); }
+    catch(err){
+      a = PLACES[from] ? {lat:PLACES[from][0],lon:PLACES[from][1]} : null;
+      b = PLACES[to] ? {lat:PLACES[to][0],lon:PLACES[to][1]} : null;
+      if (!a || !b) throw new Error(err.message.startsWith('「') ? err.message : '場所を特定できませんでした。地名を変えるか、総運行距離・総運行時間を直接入力してください。');
+    }
+    let rt, note;
+    try { rt = await route(a, b); note = `片道 約${rt.km.toFixed(0)} km・自動車で約${rt.hours.toFixed(1)} 時間（OpenStreetMap / OSRM）`; }
+    catch(err){ rt = estimateRoute(a, b); note = `経路サービスに接続できないため直線距離からの概算です。片道 約${rt.km.toFixed(0)} km`; }
+    state.route = rt; state.points = {a, b}; state.from = from; state.to = to;
+    applyRouteToInputs();
+    drawMap();
+    setStatus(note);
+  } catch(err){
+    setStatus(err.message || '取得できませんでした。', true);
+  } finally { $('calc').disabled = false; }
+});
+
 function applyRouteToInputs(){
   if (!state.route) return;
   const mult = state.trip === 'round' ? 2 : 1;
@@ -380,11 +342,9 @@ function applyRouteToInputs(){
   state.autoH = Math.round(state.route.hours * BUS_TIME_FACTOR * mult * 2) / 2;
   $('km').value = state.autoKm;
   $('hours').value = state.autoH;
-  $('autoNote').textContent = `地図から自動入力（${state.trip==='round'?'往復':'片道'}、バス換算）。現地での滞在・待機時間を含める場合は総運行時間を書き換えてください。`;
   render();
 }
 
-// ===== 入力 → 結果 =====
 $('tripToggle').addEventListener('click', e=>{
   const b = e.target.closest('button'); if (!b) return;
   state.trip = b.dataset.trip;
@@ -392,15 +352,14 @@ $('tripToggle').addEventListener('click', e=>{
   applyRouteToInputs(); render();
 });
 ['buses','km','hours','vehicle','nights','nightHours','driverMode'].forEach(id=>$(id).addEventListener('input', render));
-$('form').addEventListener('submit', e=>e.preventDefault());
-function num(id, def){ const v = parseFloat($(id).value); return isNaN(v) ? def : v; }
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function render(){
   const km = num('km', NaN), hours = num('hours', NaN);
   const buses = Math.max(1, Math.round(num('buses', 1)));
-  const result = $('result');
   if (isNaN(km) || isNaN(hours) || km <= 0 || hours <= 0){
-    result.innerHTML = '<p class="placeholder">地図に出発地と到着地を置くか、総運行距離・総運行時間を入力してください。</p>';
+    result.innerHTML = '<p class="placeholder">出発地・到着地を入力して「距離・時間を取得して計算」を押すか、総運行距離・総運行時間を直接入力してください。</p>';
     return;
   }
   const p = {km, hours, vehicle: $('vehicle').value, nights: Math.max(0, Math.round(num('nights',0))),
@@ -412,13 +371,15 @@ function render(){
     return `<div class="${v===p.vehicle?'active':''}"><b>${RATES[v].name}${buses>1?`×${buses}台`:''}</b><span>${yen(r.total*buses)}</span></div>`;
   }).join('');
   const manual = state.autoKm !== null && (km !== state.autoKm || hours !== state.autoH);
+  const routeLine = state.from ? `<p class="perbus">${esc(state.from)} → ${esc(state.to)}（${state.trip==='round'?'往復':'片道'}）${state.route && state.route.estimated ? '　<span class="muted">直線距離からの概算</span>' : ''}</p>` : '';
   result.innerHTML = `
     <div class="total">
       <span class="amount">${yen(grand)}</span><span class="unit">税込 / ${buses}台</span>
       <span class="badge">${o.rate.name}</span>
-      <span class="badge">${state.trip==='round'?'往復':'片道'}${p.nights?`・${p.nights}泊${p.nights+1}日`:''}</span>
+      ${p.nights ? `<span class="badge">${p.nights}泊${p.nights+1}日</span>` : ''}
       ${o.useDriver ? `<span class="badge warn">交替運転者${o.autoDriver?'（自動判定）':''}</span>` : ''}
     </div>
+    ${routeLine}
     <p class="perbus">1台あたり <b>${yen(o.total)}</b>　総運行距離 <b>${km.toLocaleString('ja-JP')} km</b>・総運行時間 <b>${hours} 時間</b>${manual?'（手入力）':''}</p>
     <div class="cmp">${cmp}</div>
     <div class="tablewrap"><table>
@@ -438,7 +399,30 @@ function render(){
     </table></div>
     <p class="hint">有料道路料金・駐車料等の実費は別途。表示は法定下限額に基づく目安です。</p>`;
 }
-render();
+
+function drawMap(){
+  const rt = state.route, pt = state.points;
+  if (!window.L || !rt || !pt){ mapEl.hidden = true; return; }
+  mapEl.hidden = false;
+  if (!map){
+    map = L.map(mapEl, {scrollWheelZoom:false});
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:18, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+  }
+  if (layer) layer.remove();
+  layer = L.layerGroup([
+    L.polyline(rt.geometry, {color:'#0f4c81', weight:4, dashArray: rt.estimated ? '8 8' : null}),
+    L.marker([pt.a.lat,pt.a.lon]).bindTooltip('出発地'), L.marker([pt.b.lat,pt.b.lon]).bindTooltip('到着地'),
+  ]).addTo(map);
+  setTimeout(()=>{ map.invalidateSize(); map.fitBounds(L.polyline(rt.geometry).getBounds(), {padding:[20,20]}); }, 50);
+}
+
+// 初期表示：サンプル（内蔵座標・直線距離からの即時概算）
+(function initial(){
+  const a = {lat:PLACES['富士山駅'][0], lon:PLACES['富士山駅'][1]}, b = {lat:PLACES['東京ディズニーランド'][0], lon:PLACES['東京ディズニーランド'][1]};
+  state.route = estimateRoute(a,b); state.points = {a,b}; state.from = '富士山駅'; state.to = '東京ディズニーランド';
+  applyRouteToInputs(); drawMap();
+  setStatus('初期表示はサンプル（直線距離からの概算）です。ボタンを押すと実経路で再計算します。');
+})();
 })();
 </script>
 </body>
